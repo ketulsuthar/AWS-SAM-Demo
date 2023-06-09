@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  bulk-action
+
+  Processing messages on SQS with bulk-action lambda
+
+Globals:
+  Function:
+    Timeout: 3
+    MemorySize: 128
+
+Resources:
+  BulkActionSQS:
+    Type: AWS::SQS::Queue
+    Properties: 
+      QueueName: "BulkActionSQS"
+  
+  BulkActionFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: BulkActionLambda
+      Description: "Process the data from SQS and store into database"
+      CodeUri: lambda/bulk_action/
+      Handler: app.main
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Policies:
+        - SecretsManagerReadWrite
+      Events:
+        BulkActionSQSEvent:
+          Type: SQS 
+          Properties:
+            Queue: !GetAtt BulkActionSQS.Arn
+            BatchSize: 10
+      Layers:
+        - !Ref LibsLayer
+
+  LibsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: pymysql-boto3-layer
+      Description: Lambda layer with libs like pymysql and boto3
+      ContentUri: lambda_layer
+      CompatibleRuntimes:
+        - python3.9
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: makefile
+
+Outputs:
+  
+  BulkActionFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt BulkActionFunction.Arn
+  BulkActionFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt BulkActionFunctionRole.Arn
